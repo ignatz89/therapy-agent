@@ -4,3 +4,4 @@ data/seen_practices.json
 data/sent_practices.json
 data/*.png
 config/config.ini
+profiles/
