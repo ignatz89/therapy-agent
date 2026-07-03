@@ -1,0 +1,110 @@
+AI Therapy Search Agent — Bedienungsanleitung
+==============================================
+
+Der Agent sucht auf konfigurierten Plattformen nach Therapieplätzen, bewertet
+die Ergebnisse mit Claude gegen dein Profil und schickt Matches per Telegram.
+
+
+DATEIEN
+-------
+  config.ini              Harte Suchkriterien (Therapieart, Standort, Radius, Zahlung)
+  profiles/marc.txt       Persönliches Profil (Themen, Wünsche, Präferenzen)
+  agent_prompt.txt        Wie Claude Praxen bewertet (optional anpassen)
+  therapy_agent.py        Der Agent — diesen starten
+  data/                   Gesehene und gesendete Praxen (auto-generiert)
+
+  scrapers/               Ein File pro Plattform (116117, Jameda, ...)
+  skills/                 Claude-Scoring, Telegram, Datenspeicherung
+
+
+SETUP (einmalig)
+----------------
+1. Abhängigkeiten installieren:
+   pip install anthropic selenium
+
+2. Anthropic API-Key setzen:
+   setx ANTHROPIC_API_KEY dein-key-hier
+   Danach Terminal neu starten.
+   Key holen unter: https://console.anthropic.com
+
+3. ChromeDriver wird beim ersten Start automatisch heruntergeladen.
+
+4. Optional — Telegram-Benachrichtigungen:
+   a. Telegram öffnen, @BotFather suchen, /newbot senden → bot_token erhalten
+   b. Deinen neuen Bot anschreiben (einmal eine Nachricht senden)
+   c. @userinfobot suchen, /start senden → chat_id erhalten
+   d. config.ini öffnen und bot_token + chat_id unter [telegram] eintragen
+
+
+BENUTZUNG
+---------
+1. config.ini anpassen:
+   - therapy_types: Verhaltenstherapie, Tiefenpsychologisch, etc.
+   - location + radius: Wo du suchst
+   - payment: Kassenpatienten / Privatpatient / Selbstzahler
+
+2. profiles/marc.txt ausfüllen:
+   - Was möchtest du in der Therapie bearbeiten?
+   - Präferenzen für den Therapeuten
+   - Terminwünsche
+
+3. Agent starten:
+   py therapy_agent.py
+   py therapy_agent.py --profile marc      (Profil explizit angeben)
+
+4. Der Agent:
+   - Sucht auf allen aktivierten Plattformen
+   - Überspringt bereits bekannte Praxen
+   - Bewertet neue Praxen mit Claude (1–10)
+   - Druckt einen Bericht im Terminal
+   - Sendet Matches (score >= min_score) per Telegram mit Pros/Cons und Link
+
+
+KONFIGURATION (config.ini)
+--------------------------
+[search]
+  therapy_types    Therapieformen, kommagetrennt (Verhaltenstherapie, Tiefenpsychologisch, ...)
+  location         Ort der Suche (z.B. München)
+  radius           Suchradius in km
+  min_score        Mindest-Score für Telegram-Meldung (1–10)
+  show_browser     true = Chrome-Fenster sichtbar / false = still
+
+[payment]
+  kassenpatienten  true/false — GKV-Kassenpatienten
+  privatpatient    true/false — PKV / Beihilfe
+  selbstzahler     true/false — Selbstzahlung
+
+[preferences]
+  therapist_gender   any / male / female
+  session_format     einzel, gruppe, online (kommagetrennt)
+  languages          Deutsch, Englisch, ... (kommagetrennt)
+  max_wait_weeks     Maximale Wartezeit in Wochen (leer = egal)
+
+[platforms]
+  116117             Kassenärztliche Bundesvereinigung (offiziell, empfohlen für GKV)
+  jameda             Bewertungsportal
+  therapeutenliste   Therapeutenliste.de
+  therapie_de        Therapie.de
+
+[telegram]
+  bot_token / chat_id   Telegram-Zugangsdaten (leer lassen = kein Telegram)
+
+
+TRACKING (auto-generiert, nicht bearbeiten)
+-------------------------------------------
+  data/seen_practices_marc.json   Alle gesehenen Praxen — verhindert Doppel-Scoring
+  data/sent_practices_marc.json   Bereits per Telegram gesendete Praxen
+
+
+TIPPS
+-----
+- 116117.de ist die offizielle Suche der Kassenärztlichen Vereinigung —
+  am zuverlässigsten für Kassenpatienten.
+
+- Praxen die keinen Kassensitz haben oder keine neuen Patienten aufnehmen
+  werden von Claude automatisch niedrig bewertet.
+
+- min_score auf 5–6 senken um mehr Ergebnisse zu sehen;
+  auf 8–9 erhöhen für nur sehr gute Treffer.
+
+- Zum Zurücksetzen: data/seen_practices_marc.json und data/sent_practices_marc.json löschen.
