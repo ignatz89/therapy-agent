@@ -1,6 +1,6 @@
 """
 Skill: Claude therapy practice scorer
-  Model: claude-opus-4-7 (adaptive thinking + prompt caching)
+  Model: claude-opus-4-8 (adaptive thinking + prompt caching)
 
 Input:
   - List of therapy practices (name, address, therapy_types, payment, url, ...)
@@ -17,6 +17,7 @@ Output format expected from Claude:
 
 import json
 import re
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -105,11 +106,20 @@ def score_practices(
 
     system_prompt = agent_prompt + "\n\n## Candidate Profile\n\n" + profile + extra_context
     batches = [practices[i:i + _BATCH_SIZE] for i in range(0, len(practices), _BATCH_SIZE)]
+    if not batches:
+        return []
     _log(f"Scoring {len(practices)} practices in {len(batches)} batch(es) ...")
 
     all_scored: List[Dict] = []
-    for i, batch in enumerate(batches, 1):
-        _log(f"Batch {i}/{len(batches)}: {len(batch)} practices ...")
-        all_scored.extend(_score_batch(client, batch, system_prompt))
+    # First batch alone warms the ephemeral prompt cache (shared system prompt/profile);
+    # the rest read the warm cache and run in parallel.
+    _log(f"Batch 1/{len(batches)}: {len(batches[0])} practices (warms prompt cache) ...")
+    all_scored.extend(_score_batch(client, batches[0], system_prompt))
+
+    if len(batches) > 1:
+        _log(f"Scoring batches 2-{len(batches)} in parallel ...")
+        with ThreadPoolExecutor(max_workers=min(4, len(batches) - 1)) as executor:
+            for scored in executor.map(lambda b: _score_batch(client, b, system_prompt), batches[1:]):
+                all_scored.extend(scored)
 
     return sorted(all_scored, key=lambda x: x.get("score", 0), reverse=True)

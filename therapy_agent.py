@@ -225,7 +225,7 @@ def run_scrapers(config: Dict) -> List[Dict]:
             log(f"Kein Scraper für '{platform_name}' — übersprungen.")
             continue
         log(f"Scrape {platform_name} ...")
-        scraper = scraper_cls()
+        scraper = scraper_cls(headless=not config.get("show_browser", False))
         try:
             found = scraper.scrape(config)
             log(f"{platform_name}: {len(found)} Praxen gefunden.")
